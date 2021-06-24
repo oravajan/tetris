@@ -14,6 +14,39 @@ PLAY_GRID_HEIGHT = 20
 WINDOW_WIDTH = PLAY_GRID_WIDTH * TILE_SIZE
 WINDOW_HEIGHT = PLAY_GRID_HEIGHT * TILE_SIZE
 WINDOW_TITLE = "Tetris"
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+#                                                 MENU CLASS                                                           #
+# -------------------------------------------------------------------------------------------------------------------- #
+class MainMenu:
+    def __init__(self):
+        pass
+
+    def draw(self):
+        pass
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+#                                                 MAIN FUNCTION                                                        #
+# -------------------------------------------------------------------------------------------------------------------- #
+def main():
+    pyglet.resource.path = ['./resources']
+    pyglet.resource.reindex()
+
+    try:
+        img = pyglet.resource.image("blocks.png")
+    except pyglet.resource.ResourceNotFoundException as error:
+        print(error)
+        exit(-1)
+    else:
+        tetris_img_grid = pyglet.image.ImageGrid(img, 1, 5)
+        pyglet.app.run()
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+#                                                 GLOBAL VARIABLES                                                     #
+# -------------------------------------------------------------------------------------------------------------------- #
 game_window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
 
 
@@ -23,14 +56,15 @@ game_window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
 @game_window.event
 def on_draw():
     game_window.clear()
-    test.draw()
+
+
+@game_window.event
+def on_key_press(symbol, modifiers):
+    pass
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 START GAME                                                           #
 # -------------------------------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
-    pyglet.resource.path = ['./resources']
-    pyglet.resource.reindex()
-    test = pyglet.sprite.Sprite(img=pyglet.resource.image("blocks.png"), x=0, y=0)
-    pyglet.app.run()
+    main()
