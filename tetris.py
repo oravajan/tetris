@@ -21,6 +21,7 @@ FONT_SIZE_TITLE = 36
 FONT_SIZE_MENU_ITEM = 14
 FONT_NAME = 'Algerian'
 MENU_ITEMS_OFFSET = 40
+FREQ = 60.0
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -109,28 +110,74 @@ class MainMenu(Menu):
         self.reset()
 
 
+class PauseMenu(Menu):
+    def __init__(self, background):
+        super(PauseMenu, self).__init__('Pause', background)
+
+        pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
+        self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, start_game))
+        self.items.append(MenuItem('Save Game', pos - 2*MENU_ITEMS_OFFSET, None))
+        self.items.append(MenuItem('Exit to Main menu', pos - 3*MENU_ITEMS_OFFSET, pyglet.app.exit))
+        self.reset()
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+#                                                 GRID CLASS                                                           #
+# -------------------------------------------------------------------------------------------------------------------- #
+class Grid:
+    def __init__(self, tile_size, width, height):
+        self.tile_size = tile_size
+        self.width = width
+        self.height = height
+        self.x = WINDOW_WIDTH // 2 - (width * tile_size) // 2
+
+    def draw(self):
+        x = self.x
+        for cols in range(self.width + 1):
+            pyglet.shapes.Line(x, 0, x, WINDOW_HEIGHT).draw()
+            x += self.tile_size
+
+        y = 0
+        for rows in range(self.height + 1):
+            pyglet.shapes.Line(self.x, y, self.x + self.width * self.tile_size, y).draw()
+            y += self.tile_size
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GAME CLASS                                                           #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Game:
     def __init__(self):
         self.running = False
+        self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT)
 
     def run(self):
         self.running = True
+        pyglet.clock.schedule_interval(self.update, 1 / FREQ)
 
-    def update(self):
+    def update(self, dt):
         pass
 
     def draw(self):
-        pass
+        self.grid.draw()
+
+    def on_key_press(self, symbol, modifiers):
+        global overlay
+        if symbol == key.Q:
+            self.running = False
+            pyglet.clock.unschedule(self.update)
+            overlay = PauseMenu(pyglet.resource.image("background.png"))
+            return True
+
+    def is_running(self):
+        return self.running
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 MAIN FUNCTION                                                        #
 # -------------------------------------------------------------------------------------------------------------------- #
 def main():
-    global overlay
+    global overlay, game
     pyglet.resource.path = ['./resources']
     pyglet.resource.reindex()
 
@@ -149,7 +196,10 @@ def main():
 #                                                 FUNCTIONS                                                            #
 # -------------------------------------------------------------------------------------------------------------------- #
 def start_game():
-    pass
+    global overlay
+    del overlay
+    overlay = None
+    game.run()
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -160,6 +210,7 @@ window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
 window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
 window.set_location(window_x, window_y)
 overlay = Overlay()
+game = Game()
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -168,6 +219,9 @@ overlay = Overlay()
 @window.event
 def on_draw():
     window.clear()
+
+    if game.is_running():
+        game.draw()
 
     if overlay:
         overlay.draw()
@@ -178,7 +232,7 @@ def on_key_press(symbol, modifiers):
     if overlay:
         overlay.on_key_press(symbol, modifiers)
     else:
-        pass
+        game.on_key_press(symbol, modifiers)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
