@@ -34,6 +34,9 @@ class Overlay:
     def on_key_press(self, symbol, modifiers):
         pass
 
+    def reset(self):
+        pass
+
 
 class Menu(Overlay):
     def __init__(self, title, background):
@@ -115,9 +118,9 @@ class PauseMenu(Menu):
         super(PauseMenu, self).__init__('Pause', background)
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
-        self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, start_game))
+        self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, unpause_game))
         self.items.append(MenuItem('Save Game', pos - 2*MENU_ITEMS_OFFSET, None))
-        self.items.append(MenuItem('Exit to Main menu', pos - 3*MENU_ITEMS_OFFSET, pyglet.app.exit))
+        self.items.append(MenuItem('Exit to Main menu', pos - 3 * MENU_ITEMS_OFFSET, exit_game))
         self.reset()
 
 
@@ -152,8 +155,7 @@ class Game:
         self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT)
 
     def run(self):
-        self.running = True
-        pyglet.clock.schedule_interval(self.update, 1 / FREQ)
+        self.unpause()
 
     def update(self, dt):
         pass
@@ -161,13 +163,17 @@ class Game:
     def draw(self):
         self.grid.draw()
 
+    def pause(self):
+        self.running = False
+        pyglet.clock.unschedule(self.update)
+
+    def unpause(self):
+        self.running = True
+        pyglet.clock.schedule_interval(self.update, 1 / FREQ)
+
     def on_key_press(self, symbol, modifiers):
-        global overlay
         if symbol == key.Q:
-            self.running = False
-            pyglet.clock.unschedule(self.update)
-            overlay = PauseMenu(pyglet.resource.image("background.png"))
-            return True
+            pause_game()
 
     def is_running(self):
         return self.running
@@ -177,18 +183,23 @@ class Game:
 #                                                 MAIN FUNCTION                                                        #
 # -------------------------------------------------------------------------------------------------------------------- #
 def main():
-    global overlay, game
+    global overlay, main_menu, pause_menu
     pyglet.resource.path = ['./resources']
     pyglet.resource.reindex()
 
     try:
         tetris_img_grid = pyglet.image.ImageGrid(pyglet.resource.image("blocks.png"), 1, 5)
-        overlay = MainMenu(pyglet.resource.image("background.png"))
+        main_menu = MainMenu(pyglet.resource.image("background.png"))
+        pause_menu = PauseMenu(pyglet.resource.image("background.png"))
         window.set_icon(pyglet.resource.image("tetris_icon.ico"))
     except pyglet.resource.ResourceNotFoundException as error:
         print(error)
         exit(-1)
     else:
+        overlay = main_menu
+        window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
+        window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
+        window.set_location(window_x, window_y)
         pyglet.app.run()
 
 
@@ -196,20 +207,45 @@ def main():
 #                                                 FUNCTIONS                                                            #
 # -------------------------------------------------------------------------------------------------------------------- #
 def start_game():
-    global overlay
-    del overlay
-    overlay = None
+    set_clear_overlay()
     game.run()
+
+
+def set_overlay(new_overlay):
+    global overlay
+    overlay = new_overlay
+    if overlay:
+        overlay.reset()
+
+
+def exit_game():
+    global game
+    del game
+    game = Game()
+    set_overlay(main_menu)
+
+
+def pause_game():
+    game.pause()
+    set_overlay(pause_menu)
+
+
+def unpause_game():
+    game.unpause()
+    set_clear_overlay()
+
+
+def set_clear_overlay():
+    set_overlay(None)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GLOBAL VARIABLES                                                     #
 # -------------------------------------------------------------------------------------------------------------------- #
 window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
-window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
-window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
-window.set_location(window_x, window_y)
 overlay = Overlay()
+main_menu = None
+pause_menu = None
 game = Game()
 
 
