@@ -205,7 +205,8 @@ class Block:
                 continue
             break
 
-        if x >= 1 and grid.data[self.y][x - 1] == 0:
+        # if x >= 1 and grid.data[self.y][x - 1] == 0:
+        if grid.is_free(self.shape, self.x - 1, self.y):
             self.x -= 1
 
     def move_right(self, grid):
@@ -220,7 +221,8 @@ class Block:
                 continue
             break
 
-        if x < PLAY_GRID_WIDTH - 1 and grid.data[self.y][x + 1] == 0:
+        # if x < PLAY_GRID_WIDTH - 1 and grid.data[self.y][x + 1] == 0:
+        if grid.is_free(self.shape, self.x + 1, self.y):
             self.x += 1
 
     def move_down(self, grid):
@@ -229,8 +231,11 @@ class Block:
             if row.count(1) > 0:
                 y += len(self.shape) - index - 1
                 break
-        if y >= 1 and grid.data[y - 1][self.x] == 0:
+
+        if grid.is_free(self.shape, self.x, self.y - 1):
             self.y -= 1
+            return True
+        return False
 
     def turn_over(self, grid):
         tmp = []
@@ -243,7 +248,8 @@ class Block:
             for col in range(len(self.shape[0])):
                 if self.shape[row][col] == 1:
                     tmp[col][len(self.shape) - 1 - row] = 1
-        self.shape = tmp
+        if grid.is_free(tmp, self.x, self.y):
+            self.shape = tmp
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -272,12 +278,32 @@ class Grid:
             pyglet.shapes.Line(self.start_x, y, self.end_x, y).draw()
             y += self.tile_size + 1
 
+        for row in range(self.height):
+            for col in range(self.width):
+                if self.data[row][col] == 1:
+                    pyglet.shapes.Rectangle(self.start_x + col * (TILE_SIZE+1),
+                                            self.start_y + row * (TILE_SIZE+1),
+                                            TILE_SIZE, TILE_SIZE,
+                                            (255, 0, 0)).draw()
+
     def reset(self):
         self.data.clear()
         for row in range(self.height):
             self.data.append([])
             for col in range(self.width):
                 self.data[row].append(0)
+
+    def is_free(self, shape, x, y):
+        for row in reversed(range(len(shape))):
+            for col in range(len(shape[row])):
+                if shape[row][col] == 1:
+                    if len(shape) - 1 - row + y < 0 or len(shape) - 1 - row + y > self.height - 1:
+                        return False
+                    if col + x < 0 or col + x > self.width - 1:
+                        return False
+                    if self.data[len(shape) - 1 - row + y][col + x] == 1:
+                        return False
+        return True
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -295,7 +321,8 @@ class Game:
         self.unpause()
 
     def update(self, dt):
-        self.block.move_down(self.grid)
+        if not self.block.move_down(self.grid):
+            self.block = Block(self.grid.start_x, self.grid.start_y)
 
     def draw(self):
         self.grid.draw()
@@ -320,6 +347,8 @@ class Game:
             self.block.y -= 1
         if symbol == key.UP:
             self.block.turn_over(self.grid)
+        if symbol == key.P:
+            pyglet.clock.unschedule(self.update)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
