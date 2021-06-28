@@ -22,7 +22,7 @@ FONT_SIZE_TITLE = 36
 FONT_SIZE_MENU_ITEM = 14
 FONT_NAME = 'Algerian'
 MENU_ITEMS_OFFSET = 40
-FREQ = 60.0
+GAME_SPEED = 2.0
 
 pyglet.resource.path = ['./resources']
 pyglet.resource.reindex()
@@ -133,8 +133,10 @@ class PauseMenu(Menu):
 # -------------------------------------------------------------------------------------------------------------------- #
 class Block:
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
+        self.grid_start_x = x
+        self.grid_start_y = y
+        self.x = PLAY_GRID_WIDTH // 2 - 2
+        self.y = PLAY_GRID_HEIGHT - 2
         self.type = random.randint(0, 6)
         self.type = 0
         if self.type == 0:
@@ -150,8 +152,8 @@ class Block:
             self.img = pyglet.sprite.Sprite(tetris_img_grid[1], 0, 0)
         elif self.type == 2:
             self.shape = [[0, 0, 0],
-                          [1, 1, 1],
-                          [0, 0, 1]]
+                          [1, 0, 0],
+                          [1, 1, 1]]
             self.img = pyglet.sprite.Sprite(tetris_img_grid[2], 0, 0)
         elif self.type == 3:
             self.shape = [[0, 0, 0],
@@ -179,15 +181,56 @@ class Block:
         y = self.y
         for row, e in reversed(list(enumerate(self.shape))):
             for col in range(len(self.shape[row])):
-                self.img.x = x
-                self.img.y = y
+                self.img.x = x * (TILE_SIZE + 1) + self.grid_start_x
+                self.img.y = y * (TILE_SIZE + 1) + self.grid_start_y
                 if self.shape[row][col] == 1:
                     self.img.draw()
                 else:
-                    pyglet.shapes.Rectangle(x, y, TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
-                x += TILE_SIZE + 1
-            y += TILE_SIZE + 1
+                    pyglet.shapes.Rectangle(x * (TILE_SIZE + 1) + self.grid_start_x,
+                                            y * (TILE_SIZE + 1) + self.grid_start_y,
+                                            TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
+                x += 1
+            y += 1
             x = self.x
+
+    def move_left(self, grid):
+        x = self.x
+        for col in range(len(self.shape[0])):
+            for row in range(len(self.shape)):
+                if self.shape[row][col] == 1:
+                    x += col
+                    break
+            else:
+                # Continue if the inner loop wasn't broken.
+                continue
+            break
+
+        if x >= 1 and grid.data[self.y][x - 1] == 0:
+            self.x -= 1
+
+    def move_right(self, grid):
+        x = self.x
+        for col in reversed(range(len(self.shape[0]))):
+            for row in range(len(self.shape)):
+                if self.shape[row][col] == 1:
+                    x += col
+                    break
+            else:
+                # Continue if the inner loop wasn't broken.
+                continue
+            break
+
+        if x < PLAY_GRID_WIDTH - 1 and grid.data[self.y][x + 1] == 0:
+            self.x += 1
+
+    def move_down(self, grid):
+        y = self.y
+        for index, row in reversed(list(enumerate(self.shape))):
+            if row.count(1) > 0:
+                y += len(self.shape) - index - 1
+                break
+        if y >= 1 and grid.data[y - 1][self.x] == 0:
+            self.y -= 1
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -224,13 +267,6 @@ class Grid:
                 tmp.append(0)
             self.data.append(tmp)
 
-    def get_spawn_position(self):
-        if PLAY_GRID_WIDTH % 2 == 0:
-            x = (self.start_x + self.end_x) // 2
-        else:
-            x = (self.start_x + self.end_x - TILE_SIZE - 1) // 2
-        return x - 2*(TILE_SIZE + 1), self.end_y - 2*(TILE_SIZE + 1)
-
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GAME CLASS                                                           #
@@ -241,13 +277,13 @@ class Game:
         self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT,
                          WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE+1) + 1) // 2,
                          WINDOW_OFFSET)
-        self.block = Block(self.grid.get_spawn_position()[0], self.grid.get_spawn_position()[1])
+        self.block = Block(self.grid.start_x, self.grid.start_y)
 
     def run(self):
         self.unpause()
 
     def update(self, dt):
-        pass
+        self.block.move_down(self.grid)
 
     def draw(self):
         self.grid.draw()
@@ -259,33 +295,30 @@ class Game:
 
     def unpause(self):
         self.running = True
-        pyglet.clock.schedule_interval(self.update, 1 / FREQ)
+        pyglet.clock.schedule_interval(self.update, 1 / GAME_SPEED)
 
     def on_key_press(self, symbol, modifiers):
-        if symbol == key.Q:
+        if symbol == key.ESCAPE:
             pause_game()
         if symbol == key.LEFT:
-            self.block.x -= TILE_SIZE + 1
+            self.block.move_left(self.grid)
         if symbol == key.RIGHT:
-            self.block.x += TILE_SIZE + 1
+            self.block.move_right(self.grid)
         if symbol == key.DOWN:
-            self.block.y -= TILE_SIZE + 1
+            self.block.y -= 1
         if symbol == key.UP:
-            self.block.y += TILE_SIZE + 1
-
-    def is_running(self):
-        return self.running
+            self.block.y += 1
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 MAIN FUNCTION                                                        #
 # -------------------------------------------------------------------------------------------------------------------- #
 def main():
-    global overlay, main_menu
+    global overlay
 
     overlay = main_menu
-    window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
-    window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
+    window_x = (pyglet.canvas.Display().get_screens()[0].width - WINDOW_WIDTH) // 2
+    window_y = (pyglet.canvas.Display().get_screens()[0].height - WINDOW_HEIGHT) // 2
     window.set_location(window_x, window_y)
     pyglet.app.run()
 
@@ -349,7 +382,7 @@ game = Game()
 def on_draw():
     window.clear()
 
-    if game.is_running():
+    if game.running:
         game.draw()
 
     if overlay:
@@ -362,6 +395,7 @@ def on_key_press(symbol, modifiers):
         overlay.on_key_press(symbol, modifiers)
     else:
         game.on_key_press(symbol, modifiers)
+    return pyglet.event.EVENT_HANDLED
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
