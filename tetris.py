@@ -115,7 +115,7 @@ class MainMenu(Menu):
 
 class PauseMenu(Menu):
     def __init__(self, background):
-        super(PauseMenu, self).__init__('Pause', background)
+        super(PauseMenu, self).__init__('Paused', background)
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, unpause_game))
@@ -125,25 +125,47 @@ class PauseMenu(Menu):
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
+#                                                 BLOCK CLASS                                                          #
+# -------------------------------------------------------------------------------------------------------------------- #
+class Block:
+    pass
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GRID CLASS                                                           #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Grid:
-    def __init__(self, tile_size, width, height):
+    # TODO 2D pole, 0=prazdno, 1=block,barva, predelat vykreslovani na urcitou pozici
+    # TODO trida block, zvoleny block a dalsi na rade
+    def __init__(self, tile_size, width, height, start_x, start_y):
         self.tile_size = tile_size
         self.width = width
         self.height = height
-        self.x = WINDOW_WIDTH // 2 - (width * tile_size) // 2
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = self.start_x + self.width * (self.tile_size + 1)
+        self.end_y = self.start_y + self.height * (self.tile_size + 1)
+        self.data = []
+        self.reset()
 
     def draw(self):
-        x = self.x
+        x = self.start_x
         for cols in range(self.width + 1):
-            pyglet.shapes.Line(x, 0, x, WINDOW_HEIGHT).draw()
-            x += self.tile_size
+            pyglet.shapes.Line(x, self.start_y, x, self.end_y).draw()
+            x += self.tile_size + 1
 
-        y = 0
+        y = self.start_y
         for rows in range(self.height + 1):
-            pyglet.shapes.Line(self.x, y, self.x + self.width * self.tile_size, y).draw()
-            y += self.tile_size
+            pyglet.shapes.Line(self.start_x, y, self.end_x, y).draw()
+            y += self.tile_size + 1
+
+    def reset(self):
+        self.data.clear()
+        for row in range(self.height):
+            tmp = []
+            for col in range(self.width):
+                tmp.append(0)
+            self.data.append(tmp)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -152,7 +174,9 @@ class Grid:
 class Game:
     def __init__(self):
         self.running = False
-        self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT)
+        self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT,
+                         WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * TILE_SIZE) // 2,
+                         5 * WINDOW_OFFSET)
 
     def run(self):
         self.unpause()
@@ -222,11 +246,13 @@ def exit_game():
     global game
     del game
     game = Game()
+    window.set_size(800, 600)
     set_overlay(main_menu)
 
 
 def pause_game():
     game.pause()
+    window.set_size(800, 600)
     set_overlay(pause_menu)
 
 
@@ -236,6 +262,7 @@ def unpause_game():
 
 
 def set_clear_overlay():
+    window.set_size(800, 700)
     set_overlay(None)
 
 
