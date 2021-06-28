@@ -1,6 +1,7 @@
 # Simple tetris game using pyglet lib
 # By Jan Orava
 
+import random
 import pyglet
 from pyglet.window import key
 
@@ -12,7 +13,7 @@ PLAY_GRID_WIDTH = 10
 PLAY_GRID_HEIGHT = 20
 
 WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+WINDOW_HEIGHT = 700
 WINDOW_TITLE = "Tetris"
 
 WINDOW_OFFSET = 5
@@ -22,6 +23,9 @@ FONT_SIZE_MENU_ITEM = 14
 FONT_NAME = 'Algerian'
 MENU_ITEMS_OFFSET = 40
 FREQ = 60.0
+
+pyglet.resource.path = ['./resources']
+pyglet.resource.reindex()
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -128,15 +132,68 @@ class PauseMenu(Menu):
 #                                                 BLOCK CLASS                                                          #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Block:
-    pass
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.type = random.randint(0, 6)
+        self.type = 0
+        if self.type == 0:
+            self.shape = [[0, 0, 0, 0],
+                          [0, 0, 0, 0],
+                          [1, 1, 1, 1],
+                          [0, 0, 0, 0]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[0], 0, 0)
+        elif self.type == 1:
+            self.shape = [[0, 0, 0],
+                          [0, 0, 1],
+                          [1, 1, 1]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[1], 0, 0)
+        elif self.type == 2:
+            self.shape = [[0, 0, 0],
+                          [1, 1, 1],
+                          [0, 0, 1]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[2], 0, 0)
+        elif self.type == 3:
+            self.shape = [[0, 0, 0],
+                          [0, 1, 1],
+                          [1, 1, 0]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[3], 0, 0)
+        elif self.type == 4:
+            self.shape = [[0, 0, 0],
+                          [1, 1, 0],
+                          [0, 1, 1]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[4], 0, 0)
+        elif self.type == 5:
+            self.shape = [[0, 0, 0],
+                          [0, 1, 0],
+                          [1, 1, 1]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[5], 0, 0)
+        elif self.type == 6:
+            self.shape = [[0, 0, 0],
+                          [0, 1, 1],
+                          [0, 1, 1]]
+            self.img = pyglet.sprite.Sprite(tetris_img_grid[6], 0, 0)
+
+    def draw(self):
+        x = self.x
+        y = self.y
+        for row, e in reversed(list(enumerate(self.shape))):
+            for col in range(len(self.shape[row])):
+                self.img.x = x
+                self.img.y = y
+                if self.shape[row][col] == 1:
+                    self.img.draw()
+                else:
+                    pyglet.shapes.Rectangle(x, y, TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
+                x += TILE_SIZE + 1
+            y += TILE_SIZE + 1
+            x = self.x
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GRID CLASS                                                           #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Grid:
-    # TODO 2D pole, 0=prazdno, 1=block,barva, predelat vykreslovani na urcitou pozici
-    # TODO trida block, zvoleny block a dalsi na rade
     def __init__(self, tile_size, width, height, start_x, start_y):
         self.tile_size = tile_size
         self.width = width
@@ -167,6 +224,13 @@ class Grid:
                 tmp.append(0)
             self.data.append(tmp)
 
+    def get_spawn_position(self):
+        if PLAY_GRID_WIDTH % 2 == 0:
+            x = (self.start_x + self.end_x) // 2
+        else:
+            x = (self.start_x + self.end_x - TILE_SIZE - 1) // 2
+        return x - 2*(TILE_SIZE + 1), self.end_y - 2*(TILE_SIZE + 1)
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GAME CLASS                                                           #
@@ -175,8 +239,9 @@ class Game:
     def __init__(self):
         self.running = False
         self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT,
-                         WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * TILE_SIZE) // 2,
-                         5 * WINDOW_OFFSET)
+                         WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE+1) + 1) // 2,
+                         WINDOW_OFFSET)
+        self.block = Block(self.grid.get_spawn_position()[0], self.grid.get_spawn_position()[1])
 
     def run(self):
         self.unpause()
@@ -186,6 +251,7 @@ class Game:
 
     def draw(self):
         self.grid.draw()
+        self.block.draw()
 
     def pause(self):
         self.running = False
@@ -198,6 +264,14 @@ class Game:
     def on_key_press(self, symbol, modifiers):
         if symbol == key.Q:
             pause_game()
+        if symbol == key.LEFT:
+            self.block.x -= TILE_SIZE + 1
+        if symbol == key.RIGHT:
+            self.block.x += TILE_SIZE + 1
+        if symbol == key.DOWN:
+            self.block.y -= TILE_SIZE + 1
+        if symbol == key.UP:
+            self.block.y += TILE_SIZE + 1
 
     def is_running(self):
         return self.running
@@ -207,24 +281,13 @@ class Game:
 #                                                 MAIN FUNCTION                                                        #
 # -------------------------------------------------------------------------------------------------------------------- #
 def main():
-    global overlay, main_menu, pause_menu
-    pyglet.resource.path = ['./resources']
-    pyglet.resource.reindex()
+    global overlay, main_menu
 
-    try:
-        tetris_img_grid = pyglet.image.ImageGrid(pyglet.resource.image("blocks.png"), 1, 5)
-        main_menu = MainMenu(pyglet.resource.image("background.png"))
-        pause_menu = PauseMenu(pyglet.resource.image("background.png"))
-        window.set_icon(pyglet.resource.image("tetris_icon.ico"))
-    except pyglet.resource.ResourceNotFoundException as error:
-        print(error)
-        exit(-1)
-    else:
-        overlay = main_menu
-        window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
-        window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
-        window.set_location(window_x, window_y)
-        pyglet.app.run()
+    overlay = main_menu
+    window_x = (pyglet.canvas.Display().get_screens()[0].width - window.width) // 2
+    window_y = (pyglet.canvas.Display().get_screens()[0].height - window.height) // 2
+    window.set_location(window_x, window_y)
+    pyglet.app.run()
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -246,13 +309,11 @@ def exit_game():
     global game
     del game
     game = Game()
-    window.set_size(800, 600)
     set_overlay(main_menu)
 
 
 def pause_game():
     game.pause()
-    window.set_size(800, 600)
     set_overlay(pause_menu)
 
 
@@ -262,7 +323,6 @@ def unpause_game():
 
 
 def set_clear_overlay():
-    window.set_size(800, 700)
     set_overlay(None)
 
 
@@ -270,9 +330,15 @@ def set_clear_overlay():
 #                                                 GLOBAL VARIABLES                                                     #
 # -------------------------------------------------------------------------------------------------------------------- #
 window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
+try:
+    main_menu = MainMenu(pyglet.resource.image("background.png"))
+    pause_menu = PauseMenu(pyglet.resource.image("background.png"))
+    window.set_icon(pyglet.resource.image("tetris_icon.ico"))
+    tetris_img_grid = pyglet.image.ImageGrid(pyglet.resource.image("blocks.png"), 1, 7)
+except pyglet.resource.ResourceNotFoundException as error:
+    print(error)
+    exit(-1)
 overlay = Overlay()
-main_menu = None
-pause_menu = None
 game = Game()
 
 
