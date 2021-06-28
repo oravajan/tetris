@@ -135,8 +135,6 @@ class Block:
     def __init__(self, x, y):
         self.grid_start_x = x
         self.grid_start_y = y
-        self.x = PLAY_GRID_WIDTH // 2 - 2
-        self.y = PLAY_GRID_HEIGHT - 2
         self.type = random.randint(0, 6)
         self.type = 0
         if self.type == 0:
@@ -171,10 +169,12 @@ class Block:
                           [1, 1, 1]]
             self.img = pyglet.sprite.Sprite(tetris_img_grid[5], 0, 0)
         elif self.type == 6:
-            self.shape = [[0, 0, 0],
-                          [0, 1, 1],
-                          [0, 1, 1]]
+            self.shape = [[1, 1],
+                          [1, 1]]
             self.img = pyglet.sprite.Sprite(tetris_img_grid[6], 0, 0)
+
+        self.x = PLAY_GRID_WIDTH // 2 - len(self.shape) // 2
+        self.y = PLAY_GRID_HEIGHT - 2
 
     def draw(self):
         x = self.x
@@ -232,6 +232,19 @@ class Block:
         if y >= 1 and grid.data[y - 1][self.x] == 0:
             self.y -= 1
 
+    def turn_over(self, grid):
+        tmp = []
+        for row in range(len(self.shape)):
+            tmp.append([])
+            for col in range(len(self.shape[0])):
+                tmp[row].append(0)
+
+        for row in range(len(self.shape)):
+            for col in range(len(self.shape[0])):
+                if self.shape[row][col] == 1:
+                    tmp[col][len(self.shape) - 1 - row] = 1
+        self.shape = tmp
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GRID CLASS                                                           #
@@ -262,10 +275,9 @@ class Grid:
     def reset(self):
         self.data.clear()
         for row in range(self.height):
-            tmp = []
+            self.data.append([])
             for col in range(self.width):
-                tmp.append(0)
-            self.data.append(tmp)
+                self.data[row].append(0)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -307,7 +319,7 @@ class Game:
         if symbol == key.DOWN:
             self.block.y -= 1
         if symbol == key.UP:
-            self.block.y += 1
+            self.block.turn_over(self.grid)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
