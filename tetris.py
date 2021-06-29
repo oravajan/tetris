@@ -136,6 +136,7 @@ class Block:
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
+        self.type = 6
         if self.type == 0:
             self.shape = [[0, 0, 0, 0],
                           [0, 0, 0, 0],
@@ -307,6 +308,20 @@ class Grid:
                 if block.shape[row][col] == 1:
                     self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.img
 
+    def check_rows(self):
+        row = 0
+        index = 0
+        while row != len(self.data):  # Checks each line only one time
+            if self.data[index].count(None) == 0:
+                tmp = []
+                for i in range(len(self.data[index])):  # Remove all line
+                    tmp.append(None)
+                del self.data[index]
+                self.data.append(tmp)  # Inserts clear line on top of the grid
+                index -= 1  # Index has to be the same in the next iteration, because all rows dropped by 1
+            row += 1
+            index += 1
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GAME CLASS                                                           #
@@ -325,7 +340,12 @@ class Game:
     def update(self, dt):
         if not self.block.move_down(self.grid):
             self.grid.add_block(self.block)
+            self.grid.check_rows()
             self.block = Block(self.grid.start_x, self.grid.start_y)
+            if not self.grid.is_free(self.block.shape, self.block.x, self.block.y):
+                # losing game
+                pause_game()
+                exit_game()
 
     def draw(self):
         self.grid.draw()
