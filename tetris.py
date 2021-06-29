@@ -47,6 +47,28 @@ class Overlay:
         pass
 
 
+class Banner(Overlay):
+    def __init__(self, text, action):
+        self.text = pyglet.text.Label(text, FONT_NAME, FONT_SIZE_TITLE,
+                                      x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2,
+                                      anchor_x='center', anchor_y='center',
+                                      color=(255, 0, 0, 255))
+        self.action = action
+
+    def draw(self):
+        pyglet.shapes.Rectangle(self.text.x - self.text.content_width//2,
+                                self.text.y - self.text.content_height//2,
+                                self.text.content_width, self.text.content_height, (105, 105, 105)).draw()
+        self.text.draw()
+
+    def on_key_press(self, symbol, modifiers):
+        set_clear_overlay()
+        self.action()
+
+    def reset(self):
+        return
+
+
 class Menu(Overlay):
     def __init__(self, title, background):
         self.items = []
@@ -141,7 +163,7 @@ class Block:
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
-        self.type = 6
+        # self.type = 6
         if self.type == 0:
             self.shape = [[0, 0, 0, 0],
                           [0, 0, 0, 0],
@@ -190,10 +212,10 @@ class Block:
                 self.img.y = y * (TILE_SIZE + 1) + self.grid_start_y
                 if self.shape[row][col] == 1:
                     self.img.draw()
-                else:
-                    pyglet.shapes.Rectangle(x * (TILE_SIZE + 1) + self.grid_start_x,
-                                            y * (TILE_SIZE + 1) + self.grid_start_y,
-                                            TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
+                # else:
+                #     pyglet.shapes.Rectangle(x * (TILE_SIZE + 1) + self.grid_start_x,
+                #                             y * (TILE_SIZE + 1) + self.grid_start_y,
+                #                             TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
                 x += 1
             y += 1
             x = self.x
@@ -320,6 +342,7 @@ class Grid:
         while row != len(self.data):  # Checks each line only one time
             if self.data[index].count(None) == 0:
                 score += 1
+                game.speed_up()
                 tmp = []
                 for i in range(len(self.data[index])):  # Remove all line
                     tmp.append(None)
@@ -340,9 +363,7 @@ class Game:
                          WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE+1) + 1) // 2,
                          WINDOW_OFFSET)
         self.block = Block(self.grid.start_x, self.grid.start_y)
-
-    def run(self):
-        self.unpause()
+        self.speed = GAME_SPEED
 
     def update(self, dt):
         if not self.block.move_down(self.grid):
@@ -351,8 +372,8 @@ class Game:
             self.block = Block(self.grid.start_x, self.grid.start_y)
             if not self.grid.is_free(self.block.shape, self.block.x, self.block.y):
                 # losing game, new block can not be spawned
-                pause_game()
-                exit_game()
+                pyglet.clock.unschedule(self.update)
+                set_overlay(Banner("You lost", self.reset))
 
     def draw(self):
         self.grid.draw()
@@ -364,7 +385,7 @@ class Game:
 
     def unpause(self):
         self.running = True
-        pyglet.clock.schedule_interval(self.update, 1 / GAME_SPEED)
+        pyglet.clock.schedule_interval(self.update, 1 / self.speed)
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
@@ -383,8 +404,16 @@ class Game:
     def reset(self):
         global score
         self.grid.reset()
+        self.speed = GAME_SPEED
         self.block = Block(self.grid.start_x, self.grid.start_y)
         score = 0
+        self.unpause()
+
+    def speed_up(self):
+        if self.speed != 6.0:
+            self.speed += 0.1
+            pyglet.clock.unschedule(self.update)
+            pyglet.clock.schedule_interval(self.update, 1 / self.speed)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -406,7 +435,6 @@ def main():
 def start_game():
     set_clear_overlay()
     game.reset()
-    game.run()
 
 
 def set_overlay(new_overlay):
