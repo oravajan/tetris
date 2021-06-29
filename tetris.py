@@ -136,7 +136,6 @@ class Block:
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
-        self.type = 0
         if self.type == 0:
             self.shape = [[0, 0, 0, 0],
                           [0, 0, 0, 0],
@@ -205,7 +204,6 @@ class Block:
                 continue
             break
 
-        # if x >= 1 and grid.data[self.y][x - 1] == 0:
         if grid.is_free(self.shape, self.x - 1, self.y):
             self.x -= 1
 
@@ -221,7 +219,6 @@ class Block:
                 continue
             break
 
-        # if x < PLAY_GRID_WIDTH - 1 and grid.data[self.y][x + 1] == 0:
         if grid.is_free(self.shape, self.x + 1, self.y):
             self.x += 1
 
@@ -280,18 +277,17 @@ class Grid:
 
         for row in range(self.height):
             for col in range(self.width):
-                if self.data[row][col] == 1:
-                    pyglet.shapes.Rectangle(self.start_x + col * (TILE_SIZE+1),
-                                            self.start_y + row * (TILE_SIZE+1),
-                                            TILE_SIZE, TILE_SIZE,
-                                            (255, 0, 0)).draw()
+                if self.data[row][col] is not None:
+                    self.data[row][col].x = col * (TILE_SIZE + 1) + self.start_x
+                    self.data[row][col].y = row * (TILE_SIZE + 1) + self.start_y
+                    self.data[row][col].draw()
 
     def reset(self):
         self.data.clear()
         for row in range(self.height):
             self.data.append([])
             for col in range(self.width):
-                self.data[row].append(0)
+                self.data[row].append(None)
 
     def is_free(self, shape, x, y):
         for row in reversed(range(len(shape))):
@@ -301,9 +297,15 @@ class Grid:
                         return False
                     if col + x < 0 or col + x > self.width - 1:
                         return False
-                    if self.data[len(shape) - 1 - row + y][col + x] == 1:
+                    if self.data[len(shape) - 1 - row + y][col + x] is not None:
                         return False
         return True
+
+    def add_block(self, block):
+        for row in reversed(range(len(block.shape))):
+            for col in range(len(block.shape[row])):
+                if block.shape[row][col] == 1:
+                    self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.img
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -322,6 +324,7 @@ class Game:
 
     def update(self, dt):
         if not self.block.move_down(self.grid):
+            self.grid.add_block(self.block)
             self.block = Block(self.grid.start_x, self.grid.start_y)
 
     def draw(self):
@@ -344,11 +347,11 @@ class Game:
         if symbol == key.RIGHT:
             self.block.move_right(self.grid)
         if symbol == key.DOWN:
-            self.block.y -= 1
+            while True:
+                if not self.block.move_down(self.grid):
+                    break
         if symbol == key.UP:
             self.block.turn_over(self.grid)
-        if symbol == key.P:
-            pyglet.clock.unschedule(self.update)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
