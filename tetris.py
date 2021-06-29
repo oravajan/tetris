@@ -22,6 +22,11 @@ FONT_SIZE_TITLE = 36
 FONT_SIZE_MENU_ITEM = 14
 FONT_NAME = 'Algerian'
 MENU_ITEMS_OFFSET = 40
+
+FONT_SIZE_SCORE = 20
+SCORE_X = WINDOW_WIDTH // 4 - PLAY_GRID_WIDTH * (TILE_SIZE + 1) // 4
+SCORE_Y = WINDOW_OFFSET + ((PLAY_GRID_HEIGHT * (TILE_SIZE + 1) + 1) * 3) // 4
+
 GAME_SPEED = 2.0
 
 pyglet.resource.path = ['./resources']
@@ -309,10 +314,12 @@ class Grid:
                     self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.img
 
     def check_rows(self):
+        global score
         row = 0
         index = 0
         while row != len(self.data):  # Checks each line only one time
             if self.data[index].count(None) == 0:
+                score += 1
                 tmp = []
                 for i in range(len(self.data[index])):  # Remove all line
                     tmp.append(None)
@@ -343,7 +350,7 @@ class Game:
             self.grid.check_rows()
             self.block = Block(self.grid.start_x, self.grid.start_y)
             if not self.grid.is_free(self.block.shape, self.block.x, self.block.y):
-                # losing game
+                # losing game, new block can not be spawned
                 pause_game()
                 exit_game()
 
@@ -373,6 +380,12 @@ class Game:
         if symbol == key.UP:
             self.block.turn_over(self.grid)
 
+    def reset(self):
+        global score
+        self.grid.reset()
+        self.block = Block(self.grid.start_x, self.grid.start_y)
+        score = 0
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 MAIN FUNCTION                                                        #
@@ -392,6 +405,7 @@ def main():
 # -------------------------------------------------------------------------------------------------------------------- #
 def start_game():
     set_clear_overlay()
+    game.reset()
     game.run()
 
 
@@ -403,9 +417,6 @@ def set_overlay(new_overlay):
 
 
 def exit_game():
-    global game
-    del game
-    game = Game()
     set_overlay(main_menu)
 
 
@@ -436,6 +447,7 @@ except pyglet.resource.ResourceNotFoundException as error:
     print(error)
     exit(-1)
 overlay = Overlay()
+score = 0
 game = Game()
 
 
@@ -445,9 +457,14 @@ game = Game()
 @window.event
 def on_draw():
     window.clear()
+    score_label = pyglet.text.Label("Score: ", FONT_NAME, FONT_SIZE_SCORE,
+                                    x=SCORE_X, y=SCORE_Y,
+                                    anchor_x='center')
 
     if game.running:
         game.draw()
+        score_label.text = "Score: " + str(score)
+        score_label.draw()
 
     if overlay:
         overlay.draw()
