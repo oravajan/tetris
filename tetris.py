@@ -3,7 +3,9 @@
 
 import random
 import pyglet
+
 from pyglet.window import key
+from pyglet.gl import *
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 CONSTANT DECLARATION                                                 #
@@ -28,9 +30,6 @@ SCORE_X = WINDOW_WIDTH // 4 - PLAY_GRID_WIDTH * (TILE_SIZE + 1) // 4
 SCORE_Y = WINDOW_OFFSET + ((PLAY_GRID_HEIGHT * (TILE_SIZE + 1) + 1) * 3) // 4
 
 GAME_SPEED = 2.0
-
-pyglet.resource.path = ['./resources']
-pyglet.resource.reindex()
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -163,7 +162,6 @@ class Block:
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
-        # self.type = 6
         if self.type == 0:
             self.shape = [[0, 0, 0, 0],
                           [0, 0, 0, 0],
@@ -200,6 +198,10 @@ class Block:
                           [1, 1]]
             self.img = pyglet.sprite.Sprite(tetris_img_grid[6], 0, 0)
 
+        self.x = PLAY_GRID_WIDTH + 4 - len(self.shape) // 2
+        self.y = PLAY_GRID_HEIGHT * 3 // 4 - 3
+
+    def set_spawn_pos(self):
         self.x = PLAY_GRID_WIDTH // 2 - len(self.shape) // 2
         self.y = PLAY_GRID_HEIGHT - 2
 
@@ -363,13 +365,20 @@ class Game:
                          WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE+1) + 1) // 2,
                          WINDOW_OFFSET)
         self.block = Block(self.grid.start_x, self.grid.start_y)
+        self.block.set_spawn_pos()
+        self.next_block = Block(self.grid.start_x, self.grid.start_y)
         self.speed = GAME_SPEED
 
     def update(self, dt):
         if not self.block.move_down(self.grid):
             self.grid.add_block(self.block)
             self.grid.check_rows()
-            self.block = Block(self.grid.start_x, self.grid.start_y)
+
+            self.block = self.next_block
+            self.block.set_spawn_pos()
+
+            self.next_block = Block(self.grid.start_x, self.grid.start_y)
+
             if not self.grid.is_free(self.block.shape, self.block.x, self.block.y):
                 # losing game, new block can not be spawned
                 pyglet.clock.unschedule(self.update)
@@ -378,6 +387,7 @@ class Game:
     def draw(self):
         self.grid.draw()
         self.block.draw()
+        self.next_block.draw()
 
     def pause(self):
         self.running = False
@@ -406,6 +416,8 @@ class Game:
         self.grid.reset()
         self.speed = GAME_SPEED
         self.block = Block(self.grid.start_x, self.grid.start_y)
+        self.block.set_spawn_pos()
+        self.next_block = Block(self.grid.start_x, self.grid.start_y)
         score = 0
         self.unpause()
 
@@ -421,6 +433,9 @@ class Game:
 # -------------------------------------------------------------------------------------------------------------------- #
 def main():
     global overlay
+
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     overlay = main_menu
     window_x = (pyglet.canvas.Display().get_screens()[0].width - WINDOW_WIDTH) // 2
@@ -467,10 +482,11 @@ def set_clear_overlay():
 # -------------------------------------------------------------------------------------------------------------------- #
 window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
 try:
-    main_menu = MainMenu(pyglet.resource.image("background.png"))
-    pause_menu = PauseMenu(pyglet.resource.image("background.png"))
-    window.set_icon(pyglet.resource.image("tetris_icon.ico"))
-    tetris_img_grid = pyglet.image.ImageGrid(pyglet.resource.image("blocks.png"), 1, 7)
+    bg = pyglet.image.load("resources/background.png")
+    main_menu = MainMenu(bg)
+    pause_menu = PauseMenu(bg)
+    window.set_icon(pyglet.image.load("resources/tetris_icon.ico"))
+    tetris_img_grid = pyglet.image.ImageGrid(pyglet.image.load("resources/blocks.png"), 1, 7)
 except pyglet.resource.ResourceNotFoundException as error:
     print(error)
     exit(-1)
@@ -488,11 +504,16 @@ def on_draw():
     score_label = pyglet.text.Label("Score: ", FONT_NAME, FONT_SIZE_SCORE,
                                     x=SCORE_X, y=SCORE_Y,
                                     anchor_x='center')
+    next_block_label = pyglet.text.Label("Next block:", FONT_NAME, FONT_SIZE_SCORE,
+                                         x=WINDOW_WIDTH - (WINDOW_WIDTH - PLAY_GRID_WIDTH * (TILE_SIZE + 1) - 1) // 4,
+                                         y=SCORE_Y,
+                                         anchor_x='center')
 
     if game.running:
         game.draw()
         score_label.text = "Score: " + str(score)
         score_label.draw()
+        next_block_label.draw()
 
     if overlay:
         overlay.draw()
