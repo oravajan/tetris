@@ -239,10 +239,6 @@ class Block:
                     pyglet.sprite.Sprite(tetris_img_grid[self.type],
                                          x * (TILE_SIZE + 1) + self.grid_start_x,
                                          y * (TILE_SIZE + 1) + self.grid_start_y).draw()
-                # else:
-                #     pyglet.shapes.Rectangle(x * (TILE_SIZE + 1) + self.grid_start_x,
-                #                             y * (TILE_SIZE + 1) + self.grid_start_y,
-                #                             TILE_SIZE, TILE_SIZE, (165, 42, 42)).draw()
                 x += 1
             y += 1
             x = self.x
