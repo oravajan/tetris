@@ -195,44 +195,40 @@ class Block:
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
-        if self.type == 0:
-            self.shape = [[0, 0, 0, 0],
-                          [0, 0, 0, 0],
-                          [1, 1, 1, 1],
-                          [0, 0, 0, 0]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[0], 0, 0)
-        elif self.type == 1:
-            self.shape = [[0, 0, 0],
-                          [0, 0, 1],
-                          [1, 1, 1]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[1], 0, 0)
-        elif self.type == 2:
-            self.shape = [[0, 0, 0],
-                          [1, 0, 0],
-                          [1, 1, 1]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[2], 0, 0)
-        elif self.type == 3:
-            self.shape = [[0, 0, 0],
-                          [0, 1, 1],
-                          [1, 1, 0]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[3], 0, 0)
-        elif self.type == 4:
-            self.shape = [[0, 0, 0],
-                          [1, 1, 0],
-                          [0, 1, 1]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[4], 0, 0)
-        elif self.type == 5:
-            self.shape = [[0, 0, 0],
-                          [0, 1, 0],
-                          [1, 1, 1]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[5], 0, 0)
-        elif self.type == 6:
-            self.shape = [[1, 1],
-                          [1, 1]]
-            self.img = pyglet.sprite.Sprite(tetris_img_grid[6], 0, 0)
+        self.shape = self.set_shape(self.type)
 
         self.x = PLAY_GRID_WIDTH // 2 - len(self.shape) // 2
         self.y = PLAY_GRID_HEIGHT - 2
+
+    def set_shape(self, shape_type):
+        if shape_type == 0:
+            return [[0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [1, 1, 1, 1],
+                    [0, 0, 0, 0]]
+        elif shape_type == 1:
+            return [[0, 0, 0],
+                    [0, 0, 1],
+                    [1, 1, 1]]
+        elif shape_type == 2:
+            return [[0, 0, 0],
+                    [1, 0, 0],
+                    [1, 1, 1]]
+        elif shape_type == 3:
+            return [[0, 0, 0],
+                    [0, 1, 1],
+                    [1, 1, 0]]
+        elif shape_type == 4:
+            return [[0, 0, 0],
+                    [1, 1, 0],
+                    [0, 1, 1]]
+        elif shape_type == 5:
+            return [[0, 0, 0],
+                    [0, 1, 0],
+                    [1, 1, 1]]
+        elif shape_type == 6:
+            return [[1, 1],
+                    [1, 1]]
 
     def draw(self):
         x = self.x
@@ -240,9 +236,9 @@ class Block:
         for row, e in reversed(list(enumerate(self.shape))):
             for col in range(len(self.shape[row])):
                 if self.shape[row][col] == 1:
-                    self.img.x = x * (TILE_SIZE + 1) + self.grid_start_x
-                    self.img.y = y * (TILE_SIZE + 1) + self.grid_start_y
-                    self.img.draw()
+                    pyglet.sprite.Sprite(tetris_img_grid[self.type],
+                                         x * (TILE_SIZE + 1) + self.grid_start_x,
+                                         y * (TILE_SIZE + 1) + self.grid_start_y).draw()
                 # else:
                 #     pyglet.shapes.Rectangle(x * (TILE_SIZE + 1) + self.grid_start_x,
                 #                             y * (TILE_SIZE + 1) + self.grid_start_y,
@@ -255,9 +251,10 @@ class Block:
         for row, e in reversed(list(enumerate(self.shape))):
             for col in range(len(self.shape[row])):
                 if self.shape[row][col] == 1:
-                    self.img.x = col * (TILE_SIZE + 1) + next_block_label.x - len(self.shape[0])/2 * (TILE_SIZE + 1)
-                    self.img.y = (len(self.shape) - row - 4) * (TILE_SIZE + 1) + next_block_label.y
-                    self.img.draw()
+                    pyglet.sprite.Sprite(tetris_img_grid[self.type],
+                                         col * (TILE_SIZE + 1) + next_block_label.x
+                                         - len(self.shape[0])/2 * (TILE_SIZE + 1),
+                                         (len(self.shape) - row - 4) * (TILE_SIZE + 1) + next_block_label.y).draw()
 
     def move_left(self, grid):
         x = self.x
@@ -323,6 +320,14 @@ class Block:
             'x': self.x,
             'y': self.y,
         }
+
+    def set_from_JSON(self, data):
+        self.grid_start_x = data['grid_start_x']
+        self.grid_start_y = data['grid_start_y']
+        self.type = data['type']
+        self.shape = self.set_shape(self.type)
+        self.x = data['x']
+        self.y = data['y']
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -412,6 +417,16 @@ class Grid:
             'data': self.data,
         }
 
+    def set_from_JSON(self, data):
+        self.tile_size = data['tile_size']
+        self.width = data['width']
+        self.height = data['height']
+        self.start_x = data['start_x']
+        self.start_y = data['start_y']
+        self.end_x = data['end_x']
+        self.end_y = data['end_y']
+        self.data = data['data']
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GAME CLASS                                                           #
@@ -492,6 +507,8 @@ class Game:
             file = open("save.json", "r")
         except (FileNotFoundError, IOError):
             return
+        data = json.load(file)
+        self.set_from_JSON(data)
         file.close()
         unpause_game()
 
@@ -509,6 +526,14 @@ class Game:
             'speed': self.speed,
             'score': score,
         }
+
+    def set_from_JSON(self, data):
+        global score
+        self.grid.set_from_JSON(data['grid'])
+        self.block.set_from_JSON(data['block'])
+        self.next_block.set_from_JSON(data['next_block'])
+        self.speed = data['speed']
+        score = data['score']
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
