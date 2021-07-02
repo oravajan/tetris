@@ -606,8 +606,7 @@ def load_leaderboard():
 def save_leaderboard():
     try:
         file = open("leaderboard.txt", "w")
-    except (FileNotFoundError, IOError) as e:
-        print(e)
+    except (FileNotFoundError, IOError):
         return
 
     for s in leaderboard.lb:
