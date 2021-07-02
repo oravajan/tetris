@@ -52,16 +52,49 @@ class Banner(Overlay):
                                       anchor_x='center', anchor_y='center',
                                       color=(255, 0, 0, 255))
         self.action = action
+        self.background = pyglet.shapes.Rectangle(self.text.x - self.text.content_width//2,
+                                                  self.text.y - self.text.content_height//2,
+                                                  self.text.content_width, self.text.content_height, (105, 105, 105))
 
     def draw(self):
-        pyglet.shapes.Rectangle(self.text.x - self.text.content_width//2,
-                                self.text.y - self.text.content_height//2,
-                                self.text.content_width, self.text.content_height, (105, 105, 105)).draw()
+        self.background.draw()
         self.text.draw()
 
     def on_key_press(self, symbol, modifiers):
         set_clear_overlay()
         self.action()
+
+    def reset(self):
+        return
+
+
+class Leaderboard(Overlay):
+    def __init__(self, background, lb):
+        self.text = pyglet.text.Label('Leaderboard', FONT_NAME, FONT_SIZE_TITLE,
+                                      x=WINDOW_WIDTH // 2,
+                                      y=WINDOW_HEIGHT * 0.7,
+                                      anchor_x='center', anchor_y='center',
+                                      color=(255, 255, 0, 255))
+        self.background = background
+        self.lb = lb
+
+    def draw(self):
+        self.background.blit(0, 0)
+        lb_score = pyglet.text.Label('', FONT_NAME, FONT_SIZE_MENU_ITEM,
+                                     x=WINDOW_WIDTH // 2,
+                                     y=WINDOW_HEIGHT * 0.7,
+                                     anchor_x='center', anchor_y='center',
+                                     color=(0, 255, 100, 255)
+                                     )
+        self.text.draw()
+        lb_score.y -= FONT_SIZE_TITLE
+        for i in range(1, 6):
+            lb_score.text = str(i) + '. ' + self.lb[i - 1]
+            lb_score.y -= FONT_SIZE_TITLE
+            lb_score.draw()
+
+    def on_key_press(self, symbol, modifiers):
+        set_overlay(main_menu)
 
     def reset(self):
         return
@@ -136,9 +169,9 @@ class MainMenu(Menu):
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('New Game', pos - MENU_ITEMS_OFFSET, start_game))
-        self.items.append(MenuItem('Load Game', pos - 2*MENU_ITEMS_OFFSET, None))
-        self.items.append(MenuItem('Leaderboard', pos - 3*MENU_ITEMS_OFFSET, None))
-        self.items.append(MenuItem('Quit Game', pos - 4*MENU_ITEMS_OFFSET, pyglet.app.exit))
+        self.items.append(MenuItem('Load Game', pos - 2 * MENU_ITEMS_OFFSET, None))
+        self.items.append(MenuItem('Leaderboard', pos - 3 * MENU_ITEMS_OFFSET, print_leaderboard))
+        self.items.append(MenuItem('Quit Game', pos - 4 * MENU_ITEMS_OFFSET, pyglet.app.exit))
         self.reset()
 
 
@@ -148,8 +181,8 @@ class PauseMenu(Menu):
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, unpause_game))
-        self.items.append(MenuItem('Save Game', pos - 2*MENU_ITEMS_OFFSET, None))
-        self.items.append(MenuItem('Exit to Main menu', pos - 3 * MENU_ITEMS_OFFSET, exit_game))
+        self.items.append(MenuItem('Save Game', pos - 2 * MENU_ITEMS_OFFSET, None))
+        self.items.append(MenuItem('Exit to Main menu', pos - 3 * MENU_ITEMS_OFFSET, exit_to_main_menu))
         self.reset()
 
 
@@ -379,6 +412,7 @@ class Game:
                 # losing game, new block can not be spawned
                 pyglet.clock.unschedule(self.update)
                 set_overlay(Banner("You lost", self.reset))
+                update_leaderboard()
 
     def draw(self):
         self.grid.draw()
@@ -460,7 +494,7 @@ def set_overlay(new_overlay):
         overlay.reset()
 
 
-def exit_game():
+def exit_to_main_menu():
     set_overlay(main_menu)
 
 
@@ -478,6 +512,47 @@ def set_clear_overlay():
     set_overlay(None)
 
 
+def load_leaderboard():
+    lb = ['Empty', 'Empty', 'Empty', 'Empty', 'Empty']
+    try:
+        file = open("leaderboard.txt", "r")
+    except (FileNotFoundError, IOError):
+        return ['Empty', 'Empty', 'Empty', 'Empty', 'Empty']
+
+    for i in range(5):
+        lb[i] = file.readline().rstrip()
+    file.close()
+    return lb
+
+
+def save_leaderboard():
+    try:
+        file = open("leaderboard.txt", "w")
+    except (FileNotFoundError, IOError) as e:
+        print(e)
+        return
+
+    for s in leaderboard.lb:
+        file.write(s + '\n')
+
+
+def print_leaderboard():
+    set_overlay(leaderboard)
+
+
+def update_leaderboard():
+    for i in range(len(leaderboard.lb)):
+        if leaderboard.lb[i] == 'Empty':
+            leaderboard.lb[i] = str(score)
+            save_leaderboard()
+            break
+        if score > int(leaderboard.lb[i]):
+            leaderboard.lb.insert(i, str(score))
+            leaderboard.lb.pop()
+            save_leaderboard()
+            break
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GLOBAL VARIABLES                                                     #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -486,6 +561,7 @@ window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
 try:
     main_menu = MainMenu(pyglet.image.load("resources/background.png"))
     pause_menu = PauseMenu(pyglet.image.load("resources/background.png"))
+    leaderboard = Leaderboard(pyglet.image.load("resources/background.png"), load_leaderboard())
     window.set_icon(pyglet.image.load("resources/tetris_icon.ico"))
     tetris_img_grid = pyglet.image.ImageGrid(pyglet.image.load("resources/blocks.png"), 1, 7)
 except pyglet.resource.ResourceNotFoundException as error:
