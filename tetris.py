@@ -2,6 +2,7 @@
 # By Jan Orava
 
 import random
+import json
 import pyglet
 
 from pyglet.window import key
@@ -169,7 +170,7 @@ class MainMenu(Menu):
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('New Game', pos - MENU_ITEMS_OFFSET, start_game))
-        self.items.append(MenuItem('Load Game', pos - 2 * MENU_ITEMS_OFFSET, None))
+        self.items.append(MenuItem('Load Game', pos - 2 * MENU_ITEMS_OFFSET, load_game))
         self.items.append(MenuItem('Leaderboard', pos - 3 * MENU_ITEMS_OFFSET, print_leaderboard))
         self.items.append(MenuItem('Quit Game', pos - 4 * MENU_ITEMS_OFFSET, pyglet.app.exit))
         self.reset()
@@ -181,7 +182,7 @@ class PauseMenu(Menu):
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, unpause_game))
-        self.items.append(MenuItem('Save Game', pos - 2 * MENU_ITEMS_OFFSET, None))
+        self.items.append(MenuItem('Save Game', pos - 2 * MENU_ITEMS_OFFSET, save_game))
         self.items.append(MenuItem('Exit to Main menu', pos - 3 * MENU_ITEMS_OFFSET, exit_to_main_menu))
         self.reset()
 
@@ -314,6 +315,15 @@ class Block:
         if grid.is_free(tmp, self.x, self.y):
             self.shape = tmp
 
+    def toJSON(self):
+        return {
+            'grid_start_x': self.grid_start_x,
+            'grid_start_y': self.grid_start_y,
+            'type': self.type,
+            'x': self.x,
+            'y': self.y,
+        }
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 GRID CLASS                                                           #
@@ -344,9 +354,9 @@ class Grid:
         for row in range(self.height):
             for col in range(self.width):
                 if self.data[row][col] is not None:
-                    self.data[row][col].x = col * (TILE_SIZE + 1) + self.start_x
-                    self.data[row][col].y = row * (TILE_SIZE + 1) + self.start_y
-                    self.data[row][col].draw()
+                    x = col * (TILE_SIZE + 1) + self.start_x
+                    y = row * (TILE_SIZE + 1) + self.start_y
+                    pyglet.sprite.Sprite(tetris_img_grid[self.data[row][col]], x, y).draw()
 
     def reset(self):
         self.data.clear()
@@ -371,7 +381,7 @@ class Grid:
         for row in reversed(range(len(block.shape))):
             for col in range(len(block.shape[row])):
                 if block.shape[row][col] == 1:
-                    self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.img
+                    self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.type
 
     def check_rows(self):
         global score
@@ -389,6 +399,18 @@ class Grid:
                 index -= 1  # Index has to be the same in the next iteration, because all rows dropped by 1
             row += 1
             index += 1
+
+    def toJSON(self):
+        return {
+            'tile_size': self.tile_size,
+            'width': self.width,
+            'height': self.height,
+            'start_x': self.start_x,
+            'start_y': self.start_y,
+            'end_x': self.end_x,
+            'end_y': self.end_y,
+            'data': self.data,
+        }
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -465,6 +487,29 @@ class Game:
         self.block = self.next_block
         self.next_block = Block(self.grid.start_x, self.grid.start_y)
 
+    def load(self):
+        try:
+            file = open("save.json", "r")
+        except (FileNotFoundError, IOError):
+            return
+        file.close()
+        unpause_game()
+
+    def save(self):
+        file = open("save.json", "w")
+        json.dump(self.toJSON(), file, indent=4)
+        file.close()
+        set_overlay(Banner("Saved", self.unpause))
+
+    def toJSON(self):
+        return {
+            'grid': self.grid.toJSON(),
+            'block': self.block.toJSON(),
+            'next_block': self.next_block.toJSON(),
+            'speed': self.speed,
+            'score': score,
+        }
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 MAIN FUNCTION                                                        #
@@ -508,6 +553,14 @@ def unpause_game():
     set_clear_overlay()
 
 
+def load_game():
+    game.load()
+
+
+def save_game():
+    game.save()
+
+
 def set_clear_overlay():
     set_overlay(None)
 
@@ -517,7 +570,7 @@ def load_leaderboard():
     try:
         file = open("leaderboard.txt", "r")
     except (FileNotFoundError, IOError):
-        return ['Empty', 'Empty', 'Empty', 'Empty', 'Empty']
+        return lb
 
     for i in range(5):
         lb[i] = file.readline().rstrip()
