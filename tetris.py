@@ -619,6 +619,7 @@ next_block_label = pyglet.text.Label("Next block:", FONT_NAME, FONT_SIZE_SCORE,
 overlay = main_menu
 score = 0
 game = Game()
+can_use_mouse = False
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -641,11 +642,37 @@ def on_draw():
 
 @window.event
 def on_key_press(symbol, modifiers):
+    global can_use_mouse
+    if symbol == key.P:
+        can_use_mouse = not can_use_mouse
+        return pyglet.event.EVENT_HANDLED
+
     if overlay:
         overlay.on_key_press(symbol, modifiers)
     else:
         game.on_key_press(symbol, modifiers)
     return pyglet.event.EVENT_HANDLED
+
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    if can_use_mouse and game.running and button == pyglet.window.mouse.LEFT:
+        game.on_key_press(key.DOWN, None)
+
+
+@window.event
+def on_mouse_scroll(x, y, scroll_x, scroll_y):
+    if can_use_mouse and game.running:
+        game.on_key_press(key.UP, None)
+
+
+@window.event
+def on_mouse_motion(x, y, dx, dy):
+    if can_use_mouse and game.running:
+        if x > game.block.grid_start_x + (game.block.x + (len(game.block.shape) - 1) / 2) * (TILE_SIZE + 1):
+            game.on_key_press(key.RIGHT, None)
+        if x < game.block.grid_start_x + (game.block.x + (len(game.block.shape) - 1) / 2) * (TILE_SIZE + 1):
+            game.on_key_press(key.LEFT, None)
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
