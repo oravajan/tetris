@@ -15,3 +15,7 @@ You can download windows installer for [AMD](https://github.com/oravajan/tetris/
 * ARROW_RIGHT - moves block to the right  
 * ESCAPE - opens menu  
 * P - allows mouse for player's input  
+
+## Preview
+![Menu preview](https://github.com/oravajan/tetris/blob/main/main_menu_preview.png?raw=true)
+![Game preview](https://github.com/oravajan/tetris/blob/main/game_preview.png?raw=true)
