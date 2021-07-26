@@ -18,7 +18,7 @@ WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 700
 WINDOW_TITLE = "Tetris"
 
-WINDOW_OFFSET = 5
+WINDOW_OFFSET = 5  # Minimum space between something and window edge
 
 FONT_SIZE_TITLE = 36
 FONT_SIZE_MENU_ITEM = 14
@@ -29,16 +29,13 @@ MENU_ITEMS_OFFSET = 40
 SCORE_X = WINDOW_WIDTH // 4 - PLAY_GRID_WIDTH * (TILE_SIZE + 1) // 4
 SCORE_Y = WINDOW_OFFSET + ((PLAY_GRID_HEIGHT * (TILE_SIZE + 1) + 1) * 3) // 4
 
-GAME_SPEED = 2.0
+GAME_SPEED = 2.0  # Starting game speed
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                 OVERLAY CLASSES                                                      #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Overlay:
-    def __init__(self, background):
-        self.background = background
-
     def draw(self):
         pass
 
@@ -50,14 +47,17 @@ class Overlay:
 
 
 class Banner(Overlay):
+    """
+    Class used for simple text overlay.
+    """
     def __init__(self, text, action):
         self.text = pyglet.text.Label(text, FONT_NAME, FONT_SIZE_TITLE,
                                       x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2,
                                       anchor_x='center', anchor_y='center',
                                       color=(255, 0, 0, 255))
-        super().__init__(pyglet.shapes.Rectangle(self.text.x - self.text.content_width // 2,
-                                                 self.text.y - self.text.content_height // 2,
-                                                 self.text.content_width, self.text.content_height, (105, 105, 105)))
+        self.background = pyglet.shapes.Rectangle(self.text.x - self.text.content_width // 2,
+                                                  self.text.y - self.text.content_height // 2,
+                                                  self.text.content_width, self.text.content_height, (0, 155, 20))
 
         self.action = action
 
@@ -71,8 +71,7 @@ class Banner(Overlay):
 
 
 class Leaderboard(Overlay):
-    def __init__(self, background, lb):
-        super().__init__(background)
+    def __init__(self, lb):
         self.text = pyglet.text.Label('Leaderboard', FONT_NAME, FONT_SIZE_TITLE,
                                       x=WINDOW_WIDTH // 2,
                                       y=WINDOW_HEIGHT * 0.7,
@@ -81,15 +80,16 @@ class Leaderboard(Overlay):
         self.lb = lb
 
     def draw(self):
-        self.background.blit(0, 0)
+        self.text.draw()
+
         lb_score = pyglet.text.Label('', FONT_NAME, FONT_SIZE_MENU_ITEM,
                                      x=WINDOW_WIDTH // 2,
                                      y=WINDOW_HEIGHT * 0.7,
                                      anchor_x='center', anchor_y='center',
-                                     color=(0, 255, 100, 255)
-                                     )
-        self.text.draw()
+                                     color=(0, 255, 100, 255))
         lb_score.y -= FONT_SIZE_TITLE
+
+        # Prints 5 best scores
         for i in range(1, 6):
             lb_score.text = str(i) + '. ' + self.lb[i - 1]
             lb_score.y -= FONT_SIZE_TITLE
@@ -98,13 +98,9 @@ class Leaderboard(Overlay):
     def on_key_press(self, symbol, modifiers):
         set_overlay(main_menu)
 
-    def reset(self):
-        return
-
 
 class Menu(Overlay):
-    def __init__(self, title, background):
-        super().__init__(background)
+    def __init__(self, title):
         self.items = []
         self.title_text = pyglet.text.Label(title,
                                             font_name=FONT_NAME,
@@ -133,7 +129,6 @@ class Menu(Overlay):
             self.selected_index = len(self.items) - 1
 
     def draw(self):
-        self.background.blit(0, 0)
         self.title_text.draw()
         for index, item in enumerate(self.items):
             if index == self.selected_index:
@@ -166,8 +161,8 @@ class MenuItem:
 
 
 class MainMenu(Menu):
-    def __init__(self, background):
-        super().__init__('Tetris', background)
+    def __init__(self):
+        super().__init__('Tetris')
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('New Game', pos - MENU_ITEMS_OFFSET, start_game))
@@ -178,8 +173,8 @@ class MainMenu(Menu):
 
 
 class PauseMenu(Menu):
-    def __init__(self, background):
-        super().__init__('Paused', background)
+    def __init__(self):
+        super().__init__('Paused')
 
         pos = self.title_text.y - FONT_SIZE_TITLE // 2 + FONT_SIZE_MENU_ITEM // 2
         self.items.append(MenuItem('Resume', pos - MENU_ITEMS_OFFSET, unpause_game))
@@ -193,119 +188,89 @@ class PauseMenu(Menu):
 # -------------------------------------------------------------------------------------------------------------------- #
 class Block:
     def __init__(self, x, y):
+        # (0, 0) is bottom-left corner
         self.grid_start_x = x
         self.grid_start_y = y
         self.type = random.randint(0, 6)
         self.shape = self.set_shape(self.type)
 
-        self.x = PLAY_GRID_WIDTH // 2 - len(self.shape) // 2
-        self.y = PLAY_GRID_HEIGHT - 2
+        self.x = PLAY_GRID_WIDTH // 2 - len(self.shape) // 2  # Middle of play grid
+        self.y = PLAY_GRID_HEIGHT - len(self.shape)  # Top of the grid, whole shape fits
 
-    def set_shape(self, shape_type):
+    @staticmethod
+    def set_shape(shape_type):
         if shape_type == 0:
-            return [[0, 0, 0, 0],
-                    [0, 0, 0, 0],
-                    [1, 1, 1, 1],
-                    [0, 0, 0, 0]]
+            return [[0, 1, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 1, 0, 0]]
         elif shape_type == 1:
-            return [[0, 0, 0],
-                    [0, 0, 1],
-                    [1, 1, 1]]
-        elif shape_type == 2:
-            return [[0, 0, 0],
+            return [[1, 0, 0],
                     [1, 0, 0],
-                    [1, 1, 1]]
-        elif shape_type == 3:
-            return [[0, 0, 0],
-                    [0, 1, 1],
                     [1, 1, 0]]
-        elif shape_type == 4:
-            return [[0, 0, 0],
-                    [1, 1, 0],
+        elif shape_type == 2:
+            return [[0, 0, 1],
+                    [0, 0, 1],
                     [0, 1, 1]]
+        elif shape_type == 3:
+            return [[0, 1, 1],
+                    [1, 1, 0],
+                    [0, 0, 0]]
+        elif shape_type == 4:
+            return [[1, 1, 0],
+                    [0, 1, 1],
+                    [0, 0, 0]]
         elif shape_type == 5:
-            return [[0, 0, 0],
+            return [[1, 1, 1],
                     [0, 1, 0],
-                    [1, 1, 1]]
+                    [0, 0, 0]]
         elif shape_type == 6:
             return [[1, 1],
                     [1, 1]]
 
     def draw(self):
-        x = self.x
-        y = self.y
-        for row, e in reversed(list(enumerate(self.shape))):
+        for row in range(len(self.shape)):
             for col in range(len(self.shape[row])):
-                if self.shape[row][col] == 1:
+                # We start from bottom-left corner of the shape
+                if self.shape[len(self.shape) - 1 - row][col] == 1:
                     pyglet.sprite.Sprite(tetris_img_grid[self.type],
-                                         x * (TILE_SIZE + 1) + self.grid_start_x,
-                                         y * (TILE_SIZE + 1) + self.grid_start_y).draw()
-                x += 1
-            y += 1
-            x = self.x
+                                         self.grid_start_x + (self.x + col) * (TILE_SIZE + 1),
+                                         self.grid_start_y + (self.y + row) * (TILE_SIZE + 1)
+                                         ).draw()
 
     def draw_as_next(self):
-        for row, e in reversed(list(enumerate(self.shape))):
+        for row in range(len(self.shape)):
             for col in range(len(self.shape[row])):
-                if self.shape[row][col] == 1:
+                # We start from bottom-left corner of the shape
+                if self.shape[len(self.shape) - 1 - row][col] == 1:
                     pyglet.sprite.Sprite(tetris_img_grid[self.type],
-                                         col * (TILE_SIZE + 1) + next_block_label.x
-                                         - len(self.shape[0])/2 * (TILE_SIZE + 1),
-                                         (len(self.shape) - row - 4) * (TILE_SIZE + 1) + next_block_label.y).draw()
+                                         next_block_label.x + (col - len(self.shape[0])/2) * (TILE_SIZE + 1),
+                                         next_block_label.y + (row - len(self.shape) - 1) * (TILE_SIZE + 1)
+                                         ).draw()
 
     def move_left(self, grid):
-        x = self.x
-        for col in range(len(self.shape[0])):
-            for row in range(len(self.shape)):
-                if self.shape[row][col] == 1:
-                    x += col
-                    break
-            else:
-                # Continue if the inner loop wasn't broken.
-                continue
-            break
-
         if grid.is_free(self.shape, self.x - 1, self.y):
             self.x -= 1
 
     def move_right(self, grid):
-        x = self.x
-        for col in reversed(range(len(self.shape[0]))):
-            for row in range(len(self.shape)):
-                if self.shape[row][col] == 1:
-                    x += col
-                    break
-            else:
-                # Continue if the inner loop wasn't broken.
-                continue
-            break
-
         if grid.is_free(self.shape, self.x + 1, self.y):
             self.x += 1
 
     def move_down(self, grid):
-        y = self.y
-        for index, row in reversed(list(enumerate(self.shape))):
-            if row.count(1) > 0:
-                y += len(self.shape) - index - 1
-                break
-
         if grid.is_free(self.shape, self.x, self.y - 1):
             self.y -= 1
             return True
         return False
 
     def turn_over(self, grid):
-        tmp = []
-        for row in range(len(self.shape)):
-            tmp.append([])
-            for col in range(len(self.shape[0])):
-                tmp[row].append(0)
+        # Creates temporary list of zeros with the same size as shape
+        tmp = [[0]*len(self.shape[0]) for _ in range(len(self.shape))]
 
         for row in range(len(self.shape)):
             for col in range(len(self.shape[0])):
                 if self.shape[row][col] == 1:
-                    tmp[col][len(self.shape) - 1 - row] = 1
+                    tmp[col][len(self.shape) - 1 - row] = 1  # Rotation 90 deg clockwise
+
         if grid.is_free(tmp, self.x, self.y):
             self.shape = tmp
 
@@ -339,68 +304,70 @@ class Grid:
         self.start_y = start_y
         self.end_x = self.start_x + self.width * (self.tile_size + 1)
         self.end_y = self.start_y + self.height * (self.tile_size + 1)
-        self.data = []
-        self.reset()
+        self.data = [[None] * self.width for _ in range(self.height)]
 
     def draw(self):
-        x = self.start_x
-        for cols in range(self.width + 1):
-            pyglet.shapes.Line(x, self.start_y, x, self.end_y-1).draw()
-            x += self.tile_size + 1
+        pyglet.shapes.Rectangle(self.start_x, self.start_y,
+                                self.width * (self.tile_size + 1), self.height * (self.tile_size + 1),
+                                (0, 255, 120)
+                                ).draw()
 
-        y = self.start_y
+        for cols in range(self.width + 1):
+            pyglet.shapes.Line(self.start_x + cols * (self.tile_size + 1), self.start_y,
+                               self.start_x + cols * (self.tile_size + 1), self.end_y,
+                               color=(54, 0, 54)
+                               ).draw()
+
         for rows in range(self.height + 1):
-            pyglet.shapes.Line(self.start_x - 1, y, self.end_x, y).draw()
-            y += self.tile_size + 1
+            pyglet.shapes.Line(self.start_x, self.start_y + rows * (self.tile_size + 1),
+                               self.end_x, self.start_y + rows * (self.tile_size + 1),
+                               color=(54, 0, 54)
+                               ).draw()
 
         for row in range(self.height):
             for col in range(self.width):
                 if self.data[row][col] is not None:
-                    x = col * (TILE_SIZE + 1) + self.start_x
-                    y = row * (TILE_SIZE + 1) + self.start_y
-                    pyglet.sprite.Sprite(tetris_img_grid[self.data[row][col]], x, y).draw()
+                    pyglet.sprite.Sprite(tetris_img_grid[self.data[row][col]],
+                                         self.start_x + col * (TILE_SIZE + 1),
+                                         self.start_y + row * (TILE_SIZE + 1)
+                                         ).draw()
 
     def reset(self):
-        self.data.clear()
-        for row in range(self.height):
-            self.data.append([])
-            for col in range(self.width):
-                self.data[row].append(None)
+        self.data = [[None] * self.width for _ in range(self.height)]
 
     def is_free(self, shape, x, y):
-        for row in reversed(range(len(shape))):
+        for row in range(len(shape)):
             for col in range(len(shape[row])):
-                if shape[row][col] == 1:
-                    if len(shape) - 1 - row + y < 0 or len(shape) - 1 - row + y > self.height - 1:
+                # We start from bottom-left corner of the shape
+                if shape[len(shape) - 1 - row][col] == 1:
+                    if row + y < 0 or row + y > self.height - 1:
                         return False
                     if col + x < 0 or col + x > self.width - 1:
                         return False
-                    if self.data[len(shape) - 1 - row + y][col + x] is not None:
+                    if self.data[row + y][col + x] is not None:
                         return False
         return True
 
     def add_block(self, block):
-        for row in reversed(range(len(block.shape))):
+        for row in range(len(block.shape)):
             for col in range(len(block.shape[row])):
-                if block.shape[row][col] == 1:
-                    self.data[block.y + len(block.shape) - 1 - row][block.x + col] = block.type
+                # We start from bottom-left corner of the shape
+                if block.shape[len(block.shape) - 1 - row][col] == 1:
+                    self.data[block.y + row][block.x + col] = block.type
 
     def check_rows(self):
         global score
-        row = 0
         index = 0
-        while row != len(self.data):  # Checks each line only one time
+        for row in range(len(self.data)):  # Checks each line only one time
             if self.data[index].count(None) == 0:
+                # Index has to be the same in the next iteration, because all rows dropped by 1
                 score += 1
                 game.speed_up()
-                tmp = []
-                for i in range(len(self.data[index])):  # Remove all line
-                    tmp.append(None)
+
                 del self.data[index]
-                self.data.append(tmp)  # Inserts clear line on top of the grid
-                index -= 1  # Index has to be the same in the next iteration, because all rows dropped by 1
-            row += 1
-            index += 1
+                self.data.append([None for _ in range(self.width)])  # Inserts clear line on top of the grid
+            else:
+                index += 1
 
     def toJSON(self):
         return {
@@ -432,11 +399,12 @@ class Game:
     def __init__(self):
         self.running = False
         self.grid = Grid(TILE_SIZE, PLAY_GRID_WIDTH, PLAY_GRID_HEIGHT,
-                         WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE+1) + 1) // 2,
+                         WINDOW_WIDTH // 2 - (PLAY_GRID_WIDTH * (TILE_SIZE + 1) + 1) // 2,
                          WINDOW_OFFSET)
         self.block = Block(self.grid.start_x, self.grid.start_y)
         self.next_block = Block(self.grid.start_x, self.grid.start_y)
         self.speed = GAME_SPEED
+        self.fell = False
 
     def update(self, dt):
         if not self.block.move_down(self.grid):
@@ -464,16 +432,17 @@ class Game:
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             pause_game()
-        if symbol == key.LEFT:
+        if symbol == key.LEFT and not self.fell:
             self.block.move_left(self.grid)
-        if symbol == key.RIGHT:
+        if symbol == key.RIGHT and not self.fell:
             self.block.move_right(self.grid)
+        if symbol == key.UP and not self.fell:
+            self.block.turn_over(self.grid)
         if symbol == key.DOWN:
+            self.fell = True
             while True:
                 if not self.block.move_down(self.grid):
                     break
-        if symbol == key.UP:
-            self.block.turn_over(self.grid)
 
     def reset(self):
         global score
@@ -481,6 +450,7 @@ class Game:
         self.speed = GAME_SPEED
 
         self.block = Block(self.grid.start_x, self.grid.start_y)
+        self.fell = False
         self.next_block = Block(self.grid.start_x, self.grid.start_y)
 
         score = 0
@@ -497,6 +467,7 @@ class Game:
         self.grid.check_rows()
 
         self.block = self.next_block
+        self.fell = False
         self.next_block = Block(self.grid.start_x, self.grid.start_y)
 
     def load(self):
@@ -627,21 +598,24 @@ def update_leaderboard():
 #                                                 GLOBAL VARIABLES                                                     #
 # -------------------------------------------------------------------------------------------------------------------- #
 window = pyglet.window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
-
-
-main_menu = MainMenu(pyglet.image.load("resources/background.png"))
-pause_menu = PauseMenu(pyglet.image.load("resources/background.png"))
-leaderboard = Leaderboard(pyglet.image.load("resources/background.png"), load_leaderboard())
 window.set_icon(pyglet.image.load("resources/tetris_icon.ico"))
+
+background = pyglet.image.load("resources/background.png")
 tetris_img_grid = pyglet.image.ImageGrid(pyglet.image.load("resources/blocks.png"), 1, 7)
+
+main_menu = MainMenu()
+pause_menu = PauseMenu()
+leaderboard = Leaderboard(load_leaderboard())
 
 score_label = pyglet.text.Label("Score: ", FONT_NAME, FONT_SIZE_SCORE,
                                 x=SCORE_X, y=SCORE_Y,
-                                anchor_x='center')
+                                anchor_x='center',
+                                color=(0, 255, 120, 255))
 next_block_label = pyglet.text.Label("Next block:", FONT_NAME, FONT_SIZE_SCORE,
                                      x=WINDOW_WIDTH - (WINDOW_WIDTH - PLAY_GRID_WIDTH * (TILE_SIZE + 1) - 1) // 4,
                                      y=SCORE_Y,
-                                     anchor_x='center')
+                                     anchor_x='center',
+                                     color=(0, 255, 120, 255))
 overlay = main_menu
 score = 0
 game = Game()
@@ -653,6 +627,7 @@ game = Game()
 @window.event
 def on_draw():
     window.clear()
+    background.blit(0, 0)
 
     if game.running:
         game.draw()
